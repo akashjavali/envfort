@@ -46,6 +46,17 @@ describe('check command', () => {
     expect(code).toBe(1);
     expect(stderr).toContain('not found');
   });
+
+  it('loads .env file automatically when validating', () => {
+    const dir = join(tmpdir(), `check-dotenv-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'env-schema.json'), JSON.stringify({ HOST: 'string', PORT: 'number' }));
+    writeFileSync(join(dir, '.env'), 'HOST=localhost\nPORT=3000\n');
+    const { stdout, code } = runCli(['check', '--schema', join(dir, 'env-schema.json'), '--env', join(dir, '.env')]);
+    expect(code).toBe(0);
+    expect(stdout).toContain('✅');
+    rmSync(dir, { recursive: true });
+  });
 });
 
 describe('init command', () => {

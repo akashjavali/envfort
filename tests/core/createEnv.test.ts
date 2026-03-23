@@ -47,13 +47,14 @@ describe('createEnv — secret detection warnings', () => {
 });
 
 describe('createEnv — redaction', () => {
-  it('redacts values in JSON.stringify', () => {
+  it('redacts secret values in JSON.stringify, passes non-secret through', () => {
     const env = createEnv(
-      { API_KEY: 'string' },
-      { redact: true, env: { API_KEY: 'sk-secret' } },
+      { API_KEY: { type: 'string', secret: true }, HOST: 'string' },
+      { redact: true, env: { API_KEY: 'sk-secret', HOST: 'localhost' } },
     );
     expect(JSON.stringify(env)).not.toContain('sk-secret');
     expect(JSON.stringify(env)).toContain(REDACTED);
+    expect(JSON.stringify(env)).toContain('localhost');
   });
 
   it('redacts in template literals', () => {

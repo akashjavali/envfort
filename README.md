@@ -141,20 +141,22 @@ All commands are available via `npx` with no installation required.
 
 ### `check` — Validate your environment
 
-Reads your schema and current `.env`, reports missing or invalid variables.
+Reads your schema and `.env`, reports missing or invalid variables. Automatically loads `.env` from the current directory — no need to export variables to your shell first.
 
 ```bash
 npx envfort check
-npx envfort check --schema ./config/env.schema.ts
+npx envfort check --schema ./config/env-schema.json
+npx envfort check --env .env.local
 ```
 
 ### `init` — Generate a schema file
 
-Scaffolds a `env.ts` schema file from your existing `.env`.
+Generates `env-schema.json`. If a `.env.example` exists in the current directory, it reads all keys from it automatically. Otherwise falls back to a sample schema.
 
 ```bash
 npx envfort init
-npx envfort init --output ./src/env.ts
+npx envfort init --output ./config/env-schema.json
+npx envfort init --example .env.example.staging
 ```
 
 ### `gen-example` — Generate `.env.example`

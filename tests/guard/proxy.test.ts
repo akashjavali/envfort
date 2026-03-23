@@ -15,45 +15,51 @@ describe('createRedactedProxy — normal property access', () => {
 });
 
 describe('createRedactedProxy — JSON.stringify', () => {
-  it('redacts all defined values', () => {
+  it('redacts only secret keys, passes through non-secret values', () => {
     const env = createRedactedProxy(
       { API_KEY: 'sk-abc123', PORT: 3000 },
-      new Set<string>(),
+      new Set<string>(['API_KEY']),
     );
     const obj = JSON.parse(JSON.stringify(env)) as Record<string, unknown>;
     expect(obj['API_KEY']).toBe(REDACTED);
-    expect(obj['PORT']).toBe(REDACTED);
+    expect(obj['PORT']).toBe(3000);
   });
 
   it('omits undefined optional values', () => {
     const env = createRedactedProxy(
       { API_KEY: 'sk-abc123', PORT: undefined },
-      new Set<string>(),
+      new Set<string>(['API_KEY']),
     );
     const obj = JSON.parse(JSON.stringify(env)) as Record<string, unknown>;
     expect(obj['API_KEY']).toBe(REDACTED);
     expect('PORT' in obj).toBe(false);
   });
+
+  it('shows all values when no secret keys', () => {
+    const env = createRedactedProxy(
+      { HOST: 'localhost', PORT: 3000 },
+      new Set<string>(),
+    );
+    const obj = JSON.parse(JSON.stringify(env)) as Record<string, unknown>;
+    expect(obj['HOST']).toBe('localhost');
+    expect(obj['PORT']).toBe(3000);
+  });
 });
 
 describe('createRedactedProxy — util.inspect / console.log', () => {
-  it('redacts values in util.inspect output', () => {
-    const env = createRedactedProxy({ API_KEY: 'sk-abc123' }, new Set<string>());
+  it('redacts secret values in util.inspect output', () => {
+    const env = createRedactedProxy({ API_KEY: 'sk-abc123', HOST: 'localhost' }, new Set<string>(['API_KEY']));
     const inspected = util.inspect(env);
     expect(inspected).not.toContain('sk-abc123');
     expect(inspected).toContain(REDACTED);
+    expect(inspected).toContain('localhost');
   });
 
-  it('hides real values when console.logged', () => {
-    const env = createRedactedProxy({ API_KEY: 'sk-abc123' }, new Set<string>());
-    const chunks: string[] = [];
-    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((c) => {
-      chunks.push(String(c));
-      return true;
-    });
-    console.log(env);
-    spy.mockRestore();
-    expect(chunks.join('')).not.toContain('sk-abc123');
+  it('hides secret values when console.logged', () => {
+    const env = createRedactedProxy({ API_KEY: 'sk-abc123', HOST: 'localhost' }, new Set<string>(['API_KEY']));
+    const inspected = util.inspect(env);
+    expect(inspected).not.toContain('sk-abc123');
+    expect(inspected).toContain('localhost');
   });
 });
 

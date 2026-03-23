@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEnv } from '../core/parser.js';
+import { loadDotEnvFile } from '../dotenv/loader.js';
 import type { EnvSchema } from '../core/types.js';
 
 export function runCheck(flags: Record<string, string>): void {
@@ -20,8 +21,13 @@ export function runCheck(flags: Record<string, string>): void {
     process.exit(1);
   }
 
+  // Load .env file if present — process.env takes precedence
+  const envFilePath = resolve(flags['env'] ?? '.env');
+  const fileVars = loadDotEnvFile(envFilePath);
+  const env = { ...fileVars, ...process.env } as Record<string, string | undefined>;
+
   try {
-    parseEnv(schema, process.env as Record<string, string | undefined>);
+    parseEnv(schema, env);
     process.stdout.write(`✅ All environment variables are valid.\n`);
   } catch (err) {
     process.stderr.write(`❌ ${(err as Error).message}\n`);

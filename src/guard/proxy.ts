@@ -7,16 +7,15 @@ type AnyRecord = Record<string, unknown>;
 const SAFE_STRING = '[redacted env — use env.KEY to access individual values]';
 
 /**
- * Returns a shallow copy of the env object with all defined values replaced
- * by REDACTED. Undefined values are omitted (consistent with JSON.stringify
- * skipping undefined — maintains shape parity with non-redacted output).
+ * Returns a shallow copy of the env object with secret key values replaced
+ * by REDACTED. Non-secret values are passed through as-is.
+ * Undefined values are omitted (consistent with JSON.stringify behaviour).
  */
-function buildRedactedSnapshot(target: AnyRecord): AnyRecord {
+function buildRedactedSnapshot(target: AnyRecord, secretKeys: ReadonlySet<string>): AnyRecord {
   const snapshot: AnyRecord = {};
   for (const key of Object.keys(target)) {
-    if (target[key] !== undefined) {
-      snapshot[key] = REDACTED;
-    }
+    if (target[key] === undefined) continue;
+    snapshot[key] = secretKeys.has(key) ? REDACTED : target[key];
   }
   return snapshot;
 }
@@ -46,19 +45,19 @@ export function createRedactedProxy<T extends AnyRecord>(
   // on the object (not just a truthy value). Pre-attach a stub function so
   // Node.js calls through the proxy get trap which returns the real redactor.
   (parsed as Record<string | symbol, unknown>)[inspectSymbol] = function () {
-    return buildRedactedSnapshot(parsed as AnyRecord);
+    return buildRedactedSnapshot(parsed as AnyRecord, secretKeys);
   };
 
   const handler: ProxyHandler<T> = {
     get(target, prop) {
       // JSON.stringify serialization path
       if (prop === 'toJSON') {
-        return () => buildRedactedSnapshot(target as AnyRecord);
+        return () => buildRedactedSnapshot(target as AnyRecord, secretKeys);
       }
 
       // util.inspect path — used by console.log in Node.js
       if (prop === inspectSymbol) {
-        return () => buildRedactedSnapshot(target as AnyRecord);
+        return () => buildRedactedSnapshot(target as AnyRecord, secretKeys);
       }
 
       // String coercion: String(env), '' + env

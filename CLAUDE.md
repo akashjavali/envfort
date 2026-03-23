@@ -10,7 +10,7 @@ envfort is an npm package that:
 
 - Validates env variables against a schema (string, number, boolean, optional via "?", rich descriptors with default/secret)
 - Provides full TypeScript type inference from schema
-- Redacts secrets in ALL serialization contexts (JSON.stringify, console.log, template literals, String())
+- Redacts `secret: true` fields in ALL serialization contexts (JSON.stringify, console.log, template literals, String()) — non-secret fields pass through normally
 - Variables marked `secret: true` are always redacted even on direct access
 - Detects secret-looking values (sk-, ghp_, Bearer, AKIA, etc.) and warns
 - Has a CLI: check, init, gen-example, install-hook (git pre-commit hook)
@@ -76,14 +76,21 @@ example/index.ts      - Runnable demo
 ### Proxy Interception Strategy
 `createRedactedProxy()` intercepts the following to ensure secrets never leak:
 
-| Intercept | Context |
-|---|---|
-| `toJSON` | `JSON.stringify()` |
-| `util.inspect.custom` | `console.log()` |
-| `toString` | `String()` |
-| `Symbol.toPrimitive` | Template literals (`` `${env}` ``) |
+| Intercept | Context | Behaviour |
+|---|---|---|
+| `toJSON` | `JSON.stringify()` | Only `secret: true` keys replaced with REDACTED; others pass through |
+| `util.inspect.custom` | `console.log()` | Only `secret: true` keys replaced with REDACTED; others pass through |
+| `toString` | `String()` | Returns safe sentinel string (whole object coercion is unsafe) |
+| `Symbol.toPrimitive` | Template literals (`` `${env}` ``) | Returns safe sentinel string |
 
 Individual property access (`env.KEY`) returns the real value by design — except for keys marked `secret: true`, which are always redacted even on direct access.
+
+### CLI .env Loading
+- `check` auto-loads `.env` from cwd before validating — no need to export vars to the shell
+- `check --env <path>` allows specifying a custom env file path
+- `process.env` always takes precedence over `.env` file values
+- `init` auto-reads `.env.example` from cwd if present and generates schema from its keys
+- `init --example <path>` allows specifying a custom example file path
 
 ### Parser Design
 - `Symbol('MISSING')` sentinel in parser (not null/undefined) avoids collision with valid values
